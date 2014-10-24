@@ -389,54 +389,63 @@ X.parserNII.prototype.parseStream = function(data) {
   // number of pixels in the volume
   var volsize = MRI.dim[1] * MRI.dim[2] * MRI.dim[3];
   
-  // scan the pixels regarding the data type
-  switch (MRI.datatype) {
-  case 2:
-    // unsigned char
-    MRI.data = this.scan('uchar', volsize);
-    break;
-  case 4:
-    // signed short
-    MRI.data = this.scan('sshort', volsize);
-    break;
-  case 8:
-    // signed int
-    MRI.data = this.scan('sint', volsize);
-    break;
-  case 16:
-    // float
-    MRI.data = this.scan('float', volsize);
-    break;
-  case 32:
-    // complex
-    MRI.data = this.scan('complex', volsize);
-    break;
-  case 64:
-    // double
-    MRI.data = this.scan('double', volsize);
-    break;
-  case 256:
-    // signed char
-    MRI.data = this.scan('schar', volsize);
-    break;
-  case 512:
-    // unsigned short
-    MRI.data = this.scan('ushort', volsize);
-    break;
-  case 768:
-    // unsigned int
-    MRI.data = this.scan('uint', volsize);
-    break;
+  MRI.data=[];
   
-  default:
-    throw new Error('Unsupported NII data type: ' + MRI.datatype);
+  for (var _v=0; _v < MRI.dim[4]; _v++) {
+    // scan the pixels regarding the data type
+    switch (MRI.datatype) {
+    case 2:
+      // unsigned char
+      MRI.data.push(this.scan('uchar', volsize));
+      break;
+    case 4:
+      // signed short
+      MRI.data.push(this.scan('sshort', volsize));
+      break;
+    case 8:
+      // signed int
+      MRI.data.push(this.scan('sint', volsize));
+      break;
+    case 16:
+      // float
+      MRI.data.push(this.scan('float', volsize));
+      break;
+    case 32:
+      // complex
+      MRI.data.push(this.scan('complex', volsize));
+      break;
+    case 64:
+      // double
+      MRI.data.push(this.scan('double', volsize));
+      break;
+    case 256:
+      // signed char
+      MRI.data.push(this.scan('schar', volsize));
+      break;
+    case 512:
+      // unsigned short
+      MRI.data.push(this.scan('ushort', volsize));
+      break;
+    case 768:
+      // unsigned int
+      MRI.data.push(this.scan('uint', volsize));
+      break;
+    default:
+      throw new Error('Unsupported NII data type: ' + MRI.datatype);
+    }
   }
-  
+
   // get the min and max intensities
-  var min_max = this.arrayMinMax(MRI.data);
-  MRI.min = min_max[0];
-  MRI.max = min_max[1];
-  
+  MRI.min = Infinity;
+  MRI.max = -Infinity;
+  for (var _v = 0; _v < MRI.dim[4]; _v++) {
+    var min_max = this.arrayMinMax(MRI.data[_v]);
+    if (min_max[0] < MRI.min)
+      MRI.min = min_max[0];
+    if (min_max[1] > MRI.max)
+      MRI.max = min_max[1];
+  }
+
   return MRI;
   
 };

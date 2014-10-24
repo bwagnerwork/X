@@ -142,6 +142,7 @@ X.parserDCM.prototype.parse = function(container, object, data, flag) {
     // -> -> The value shall be unique within a series
 
     var _ordering = 'image_position_patient';
+    var number_of_volumes = 1;
 
 
     if(first_image_stacks == 1){
@@ -153,40 +154,67 @@ X.parserDCM.prototype.parse = function(container, object, data, flag) {
         series[seriesInstanceUID][0]['dist'] = 0;
 
     }
-    else if(first_image[0]['image_position_patient'][0] != first_image[1]['image_position_patient'][0] ||
-      first_image[0]['image_position_patient'][1] != first_image[1]['image_position_patient'][1] ||
-      first_image[0]['image_position_patient'][2] != first_image[1]['image_position_patient'][2]){
-
-        // ORDERING BASED ON IMAGE POSITION
-        _ordering = 'image_position_patient';
-
-        // set distances
-        var _x_cosine = new goog.math.Vec3(first_image[0]['image_orientation_patient'][0],
-          first_image[0]['image_orientation_patient'][1], first_image[ 0 ]['image_orientation_patient'][2]);
-        var _y_cosine = new goog.math.Vec3(first_image[ 0 ]['image_orientation_patient'][3],
-          first_image[ 0 ]['image_orientation_patient'][4], first_image[ 0 ]['image_orientation_patient'][5]);
-        var _z_cosine = goog.math.Vec3.cross(_x_cosine, _y_cosine);
-
-        function computeDistance(flag, arrelem)
-          {
-            arrelem['dist'] = arrelem['image_position_patient'][0]*flag.x +
-              arrelem['image_position_patient'][1]*flag.y +
-              arrelem['image_position_patient'][2]*flag.z;
-            return arrelem;
-          }
-
-      // compute dist in this series
-      first_image.map(computeDistance.bind(null, _z_cosine));
-      // order by dist
-      first_image.sort(function(a,b){return a["dist"]-b["dist"]});
-    
-    }
     else if(first_image[0]['instance_number'] != first_image[1]['instance_number']){
-    
       // ORDERING BASED ON instance number
       _ordering = 'instance_number';
       first_image.sort(function(a,b){return a["instance_number"]-b["instance_number"]});
-    
+
+      if(first_image[0]['image_position_patient'][0] != first_image[1]['image_position_patient'][0] ||
+        first_image[0]['image_position_patient'][1] != first_image[1]['image_position_patient'][1] ||
+        first_image[0]['image_position_patient'][2] != first_image[1]['image_position_patient'][2]){
+
+          var current_ipp=first_image[0]['image_position_patient'][2];
+          var number_of_volumes=1;
+          var numSlices=-1;
+          for (var i = 0; i < object.slices.length; i++) {
+            first_image[i]['volume_number']=number_of_volumes-1;
+//            window.console.log("in: "+ i + " number_of_volumes: "+ number_of_volumes + " " + numSlices + " slices, everything else: "+ first_image[i]['image_position_patient'][0] + ":" + first_image[i]['image_position_patient'][1] + ":" + first_image[i]['image_position_patient'][2] + " v/s "+ current_ipp);
+            if (first_image[i]['image_position_patient'][2]!=current_ipp || i == 0)
+              continue;
+            if (numSlices == -1)
+              numSlices = i/number_of_volumes;
+            else if (i/number_of_volumes != numSlices)
+              window.console.log("numSlice mismatch: " + i/number_of_volumes + " != " + numSlices);
+            number_of_volumes++;
+            first_image[i]['volume_number']=number_of_volumes-1; //Need to update this slice to the new volume number
+            current_ipp=first_image[i]['image_position_patient'][2];
+          }
+
+          // ORDERING BASED ON IMAGE POSITION
+          if (number_of_volumes > 1){
+	          _ordering = 'image_position_patient_modified';
+	        }
+          else {
+	          _ordering = 'image_position_patient';
+	        }
+
+
+          // set distances
+          var _x_cosine = new goog.math.Vec3(first_image[0]['image_orientation_patient'][0],
+            first_image[0]['image_orientation_patient'][1], first_image[ 0 ]['image_orientation_patient'][2]);
+          var _y_cosine = new goog.math.Vec3(first_image[ 0 ]['image_orientation_patient'][3],
+            first_image[ 0 ]['image_orientation_patient'][4], first_image[ 0 ]['image_orientation_patient'][5]);
+          var _z_cosine = goog.math.Vec3.cross(_x_cosine, _y_cosine);
+
+          function computeDistance(flag, arrelem)
+            {
+              arrelem['dist'] = arrelem['image_position_patient'][0]*flag.x +
+                arrelem['image_position_patient'][1]*flag.y +
+                arrelem['image_position_patient'][2]*flag.z;
+              return arrelem;
+            }
+
+        // compute dist in this series
+        first_image.map(computeDistance.bind(null, _z_cosine));
+        // order by dist
+        if (_ordering == 'image_position_patient'){
+          first_image.sort(function(a,b){return a["dist"]-b["dist"]});
+        }
+        else if (_ordering == 'image_position_patient_modified'){
+          first_image.sort(function(a,b){return a["volume_number"]-b["volume_number"] || a["dist"]-b["dist"]});
+          _ordering = 'image_position_patient';
+        }
+      }
     }
     else{
 
@@ -300,21 +328,24 @@ X.parserDCM.prototype.parse = function(container, object, data, flag) {
     //
     ////////////////////////////////////////////////////////////////////////
 
-    var first_image_data = null;
+    var first_image_data = [];
 
-    // create data container
-    switch (first_image[0].bits_allocated) {
-      case 8:
-        first_image_data = new Uint8Array(first_image_size);
-        break;
-      case 16:
-        first_image_data = new Uint16Array(first_image_size);
-        break;
-      case 32:
-        first_image_data = new Uint32Array(first_image_size);
-      default:
-        window.console.log("Unknown number of bits allocated - using default: 32 bits");
-        break;
+    for (var _i=0; _i < number_of_volumes; _i++)
+    {
+      // create data container
+      switch (first_image[0].bits_allocated) {
+        case 8:
+          first_image_data.push(new Uint8Array(first_image_size));
+          break;
+        case 16:
+          first_image_data.push(new Uint16Array(first_image_size));
+          break;
+        case 32:
+          first_image_data.push(new Uint32Array(first_image_size));
+        default:
+          window.console.log("Unknown number of bits allocated - using default: 32 bits");
+          break;
+      }
     }
 
     object._spacing = first_image[0]['pixel_spacing'];
@@ -339,27 +370,35 @@ X.parserDCM.prototype.parse = function(container, object, data, flag) {
     // 0000000
     // 1232414 -> third slice
 
-    for (var _i = 0; _i < first_image_stacks; _i++) {
-      // get data
-      var _data = first_image[_i].data;
-      var _distance_position = 0;
+    var base_ipp=first_image[0]['image_position_patient'];
+    for (var _v = 0; _v < number_of_volumes; _v++) {
+      for (var _i = 0; _i < first_image_stacks; _i++) {
+//        window.console.log("_v: " + _v + " _i: " + _i);
+        if (first_image[_i]['volume_number']!=_v)
+          continue;
+        // get data
+        var _data = first_image[_i].data;
+        var _distance_position = 0;
 
-      switch(_ordering){
-        case 'image_position_patient':
-          var _x = first_image[_i]['image_position_patient'][0] - first_image[0]['image_position_patient'][0];
-          var _y = first_image[_i]['image_position_patient'][1] - first_image[0]['image_position_patient'][1];
-          var _z = first_image[_i]['image_position_patient'][2] - first_image[0]['image_position_patient'][2];
-          _distance_position = Math.sqrt(_x*_x + _y*_y  + _z*_z)/first_image[0]['pixel_spacing'][2];
-          break;
-        case 'instance_number':
-          _distance_position = first_image[_i]['instance_number'] - first_image[0]['instance_number'];
-          break;
-        default:
-          window.console.log("Unkown ordering mode - returning: " + _ordering);
-          break;
+        switch(_ordering){
+          case 'image_position_patient':
+            var _x = first_image[_i]['image_position_patient'][0] - first_image[0]['image_position_patient'][0];
+            var _y = first_image[_i]['image_position_patient'][1] - first_image[0]['image_position_patient'][1];
+            var _z = first_image[_i]['image_position_patient'][2] - first_image[0]['image_position_patient'][2];
+            _distance_position = Math.sqrt(_x*_x + _y*_y  + _z*_z)/first_image[0]['pixel_spacing'][2];
+            break;
+          case 'instance_number':
+            _distance_position = first_image[_i]['instance_number'] - first_image[0]['instance_number'];
+            break;
+          default:
+            window.console.log("Unkown ordering mode - returning: " + _ordering);
+            break;
+        }
+
+//        var min_max_temp = this.arrayMinMax(_data);
+//        window.console.log("Adding to volume " + _v + " index " + _i + " being instance " + first_image[_i]['instance_number'] + " at distance " + _distance_position +" with min/max " + min_max_temp[0] + "/" + min_max_temp[1]);
+        first_image_data[_v].set(_data, _distance_position * first_slice_size);
       }
-
-      first_image_data.set(_data, _distance_position * first_slice_size);
 
     }
 
@@ -379,13 +418,19 @@ X.parserDCM.prototype.parse = function(container, object, data, flag) {
     // NOTE:
     // colums is index 0
     // rows is index 1
-    object._dimensions = [first_image[0]['columns'], first_image[0]['rows'], first_image_expected_nb_slices];
+    object._dimensions = [first_image[0]['columns'], first_image[0]['rows'], first_image_expected_nb_slices, number_of_volumes];
     volumeAttributes.dimensions = object._dimensions;
 
     // get the min and max intensities
-    var min_max = this.arrayMinMax(first_image_data);
-    var min = min_max[0];
-    var max = min_max[1];
+    var min = Infinity;
+    var max = -Infinity;
+    for (var _v = 0; _v < number_of_volumes; _v++) {
+      var min_max = this.arrayMinMax(first_image_data[_v]);
+      if (min_max[0] < min)
+        min = min_max[0];
+      if (min_max[1] > max)
+        max = min_max[1];
+    }
 
     // attach the scalar range to the volume
     volumeAttributes.min = object._min = object._windowLow = min;
@@ -516,6 +561,9 @@ X.parserDCM.prototype.parse = function(container, object, data, flag) {
 
     // re-slice the data in SAGITTAL, CORONAL and AXIAL directions
     object._image = this.reslice(object);
+//    if (_ordering == 'image_position_patient'){
+//      object._range[3]=number_of_volumes;
+//    }
 
   }
 

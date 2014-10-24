@@ -89,12 +89,12 @@ X.volume = function(volume) {
   this._BBox = [1, 1, 1];
 
   /**
-   * The range of the x, y and z slices.
+   * The range of the x, y, z and t slices.
    *
    * @type {!Array}
    * @protected
    */
-  this._range = [ 10, 10, 10 ];
+  this._range = [ 10, 10, 10, 1];
 
   /**
    * The spacing of this volume.
@@ -159,6 +159,23 @@ X.volume = function(volume) {
    * @protected
    */
   this._indexZold = 0;
+
+  /**
+   * The index of the currently shown slice in T-direction.
+   *
+   * @type {!number}
+   * @public
+   */
+  this._indexT = 0;
+
+  /**
+   * The index of the formerly shown slice in T-direction.
+   *
+   * @type {!number}
+   * @protected
+   */
+  this._indexTold = 0;
+
 
   /**
    * The X.object holding the slices in X-direction.
@@ -306,6 +323,8 @@ X.volume.prototype.copy_ = function(volume) {
   this._indexYold = volume._indexYold;
   this._indexZ = volume._indexZ;
   this._indexZold = volume._indexZold;
+  this._indexT = volume._indexT;
+  this._indexTold = volume._indexTold;
 
   this._dimensionsRAS = volume._dimensionsRAS.slice();
   this._slicesX = new X.object(volume._slicesX);
@@ -881,6 +900,45 @@ X.volume.prototype.__defineSetter__('indexZ', function(indexZ) {
 
     // fire a modified event without propagation for fast slicing
     this.modified(false);
+
+  }
+
+});
+
+
+/**
+ * Get the slice index in T-direction.
+ *
+ * @return {!number} The slice index in T-direction.
+ * @public
+ */
+X.volume.prototype.__defineGetter__('indexT', function() {
+
+  return this._indexT;
+
+});
+
+
+/**
+ * Set the slice index in T-direction.
+ *
+ * @param {!number}
+ *          indexT The slice index in T-direction.
+ * @public
+ */
+X.volume.prototype.__defineSetter__('indexT', function(indexT) {
+
+  if (goog.isNumber(indexT) && indexT >= 0
+      && indexT < this._range[3]) {
+
+    this._indexT = indexT;
+//    this.volumeRendering_(-1);
+		this._IJKVolume=X.parser.prototype.reslice(V);
+		this._dirty=true;
+		this.modified();
+
+    // fire a modified event without propagation for fast slicing
+//    this.modified(false);
 
   }
 

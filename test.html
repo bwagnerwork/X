@@ -42,9 +42,15 @@
 
 				R.add(V);
 				R.render();
-		
-				document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1);
+
+				//Do this as a "onShowtime" so that V has time to load and V.range is VALID
+				R.onShowtime = function() {
+					document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1) + "/" + V.range[3];
+				};
+
 			});
+
+
 		</script>
 
 
@@ -60,13 +66,13 @@
 						function prevVol() {
 							V.indexT=V.indexT-1;
 							R.render();
-							document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1);
+							document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1) + "/" + V.range[3];
 							return false;
 						}
 						function nextVol() {
 							V.indexT=V.indexT+1;
 							R.render();
-							document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1);
+							document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1) + "/" + V.range[3];
 							return false;
 						}
 						function setSagittal() {
