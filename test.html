@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>	<head>
+	</head>
+	<body>
+		<script type="text/javascript" src="http://ansirxnat.medeng.wfubmc.edu/Xdevel/lib/google-closure-library/closure/goog/base.js"></script>
+		<script type="text/javascript" src="http://ansirxnat.medeng.wfubmc.edu/Xdevel/xtk-deps.js"></script>
+		<script type="text/javascript">
+
+			// include all used X-classes here
+			// this is only required when using the xtk-deps.js file
+			goog.require('X.renderer2D');
+			goog.require('X.renderer3D');
+
+			function addLoadEvent(func) {
+				var oldonload = window.onload;
+				if (typeof window.onload != 'function') {
+					window.onload = func;
+				} else {
+					window.onload = function() {
+						if (oldonload) {
+							oldonload();
+						}
+						func();
+					}
+				}
+			}
+		</script>
+
+		<script type="text/javascript">
+
+			var R = null;
+			var V = null;
+
+			addLoadEvent(function () {
+				R = new X.renderer2D();
+				R.container='SWI_id';
+				R.orientation = 'AXIAL';
+				R.init();
+		
+				V = new X.volume();
+				V.file = 'http://ansirxnat.medeng.wfubmc.edu/Xdevel/test_4D.nii';
+
+				R.add(V);
+				R.render();
+		
+				document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1);
+			});
+		</script>
+
+
+		<table>
+			<tr>
+				<td>
+				</td>
+			<tr>
+				<div id="SWI_id" style="background-color: #000; width: 400px; height: 400px;"/>
+			<tr>
+				<td>
+					<script type="text/javascript">
+						function prevVol() {
+							V.indexT=V.indexT-1;
+							R.render();
+							document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1);
+							return false;
+						}
+						function nextVol() {
+							V.indexT=V.indexT+1;
+							R.render();
+							document.getElementById('volNum').innerHTML="Volume Number: " + (V.indexT + 1);
+							return false;
+						}
+						function setSagittal() {
+							var orient='SAGITTAL';
+							R.orientation = orient;
+							V.modified();
+							R.render();
+							return false;
+						}
+						function setCoronal() {
+							var orient='CORONAL';
+							R.orientation = orient;
+							V.modified();
+							R.render();
+							return false;
+						}
+						function setAxial() {
+							var orient='AXIAL';
+							R.orientation = orient;
+							V.modified();
+							R.render();
+							return false;
+						}
+
+					</script>
+					<input type="button" id="volPrev" onClick="prevVol()" value="Previous Volume" />&nbsp;&nbsp;&nbsp;&nbsp;<span id="volNum">Volume Number: n/a</span>&nbsp;&nbsp;&nbsp;&nbsp;<input type="button" id="volNext" onClick="nextVol()" value="Next Volume"/><br>
+					<br>
+					<input type="button" onClick="setSagittal()" value="Set Sagittal" > <input type="button" onClick="setCoronal()" value="Set Coronal"> <input type="button" onClick="setAxial()" value="Set Axial">
+				<td>
+			</tr>
+		</table>
+	</body>
+</html>
